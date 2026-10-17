@@ -8,6 +8,9 @@ wtf.extend(wtfHtml);
 const $ = (id) => document.getElementById(id);
 const setState = (s) => { document.body.className = "s-" + s; };
 const fmtBytes = (b) => (b >= 1024 * 1024 ? (b / 1048576).toFixed(2) + " MiB" : Math.round(b / 1024) + " KiB");
+const fmtMB = (b) => (b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : (b / 1e6).toFixed(1) + " MB");
+const dbSize = () => fmtMB(params.t * params.L);      // X: the database the compute server scans
+const encSize = () => fmtMB(params.m * params.L);     // R: the encoded copy on the website host
 
 // ---- record what is sent to the servers (for the panel), by wrapping fetch -------------------------
 let rec = null; // current lookup: { cols: [], query: Uint8Array, done: 0 }
@@ -36,11 +39,13 @@ async function start() {
   params = client.params;
   document.querySelectorAll(".s-val").forEach((e) => (e.textContent = params.s));
   $("m-label").textContent = (params.m - 1).toLocaleString();
+  $("host-what").textContent = `Random blocks of the ${encSize()} encoded database, chosen independently of the article`;
+  $("compute-what").textContent = `One query vector that looks random (LPN-encrypted); the server computes over the whole ${dbSize()} database`;
   const res = await fetch("titles.txt.gz");
   const text = await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).text();
   text.split("\n").forEach((line, col) => line.split("\t").forEach((t, slot) => index.set(t, [col, slot])));
   sorted = [...index.keys()].map((t) => [t.toLowerCase(), t]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  $("stats").innerHTML = `${index.size.toLocaleString()} articles · lead sections<br>Wikipedia dump 2026-10-01`;
+  $("stats").innerHTML = `${index.size.toLocaleString()} articles · ${dbSize()} database<br>Lead sections · Wikipedia dump 2026-10-01`;
   $("q").disabled = false;
   $("q").placeholder = "Search " + index.size.toLocaleString() + " articles";
   route();
@@ -182,14 +187,14 @@ function render(title, wikitext, truncated) {
 
 function panel(ms) {
   $("last").hidden = false;
-  $("host-what").textContent = `${rec.cols.length} random ${params.L / 1024} KiB blocks out of ${params.m.toLocaleString()} — chosen independently of the article`;
+  $("host-what").textContent = `${rec.cols.length} random ${params.L / 1024} KiB blocks out of ${params.m.toLocaleString()} (${encSize()} encoded database) — chosen independently of the article`;
   $("strip").replaceChildren(...rec.cols.map((j) => {
     const i = document.createElement("i");
     i.style.left = (99.5 * j / params.m) + "%";
     return i;
   }));
   const q = rec.query;
-  $("compute-what").textContent = `One ${(q.length / 1024).toFixed(1)} KiB query that looks random (LPN-encrypted)`;
+  $("compute-what").textContent = `One ${(q.length / 1024).toFixed(1)} KiB query that looks random (LPN-encrypted); the server computes over the whole ${dbSize()} database`;
   $("bits").textContent = [...q.subarray(0, 200)].map((b) => b.toString(16).padStart(2, "0")).join("");
   $("t-bytes").textContent = fmtBytes((rec.cols.length + 1) * params.L + q.length);
   $("t-req").textContent = `${rec.cols.length} + 1`;
