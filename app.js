@@ -56,11 +56,12 @@ async function start() {
 
 // Warm the CDN: one 1-byte request per shard of R at startup, so the nearest edge has the shards cached before
 // the first lookup. Identical for every visitor, so it reveals nothing. (A range covers >= 1 byte; 0 is not valid.)
-// Uses realFetch so these requests are not shown in the panel.
+// Uses realFetch so these requests are not shown in the panel; cache: "no-store" so they always reach the CDN
+// instead of being answered from the browser's own cache (GitHub Pages allows caching for 10 minutes).
 function warmShards() {
   const shards = Math.ceil(params.m / params.columns_per_shard);
   for (let k = 0; k < shards; k++) {
-    realFetch(`/rc-pir/r/${k.toString(16).padStart(8, "0")}`, { headers: { Range: "bytes=0-0" } })
+    realFetch(`/rc-pir/r/${k.toString(16).padStart(8, "0")}`, { headers: { Range: "bytes=0-0" }, cache: "no-store" })
       .then((r) => r.arrayBuffer()).catch(() => {});
   }
 }
