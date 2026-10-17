@@ -28,15 +28,38 @@
 <main>
   <section>
     <div class="state st-home home">
-      <h2>Read Wikipedia privately</h2>
-      <p>Lead sections of the most-read English Wikipedia articles. Each lookup is answered by two
-         servers using RC-PIR, so neither the website host nor the compute server learns which article you opened.</p>
-      <ol>
-        <li>The title list is downloaded once; search runs in your browser.</li>
-        <li>Opening an article fetches <span class="s-val">s</span> random-looking blocks from the website host and sends one
-            scrambled query to the compute server.</li>
-        <li>Your browser combines the answers into the article. Every lookup looks the same on the network.</li>
-      </ol>
+      <h2>Read Wikipedia without revealing what you read</h2>
+      <p>This site is a working implementation of <b>Retrieve-Compute PIR (RC-PIR)</b>, from
+        <i>Retrieve-Compute PIR and Its Applications</i> by Benny Applebaum and Shahar Shechter
+        (<a href="https://eprint.iacr.org/2026/1372" rel="noreferrer">ePrint 2026/1372</a>).
+        It holds the lead sections of the <b data-v="articles">…</b> most-read English Wikipedia articles,
+        a <b data-v="db">…</b> database <span class="m">X</span>.</p>
+
+      <h3>How RC-PIR works</h3>
+      <ul>
+        <li><b>Once, offline:</b> <span class="m">X</span> is encoded with a public random matrix <span class="m">H</span>
+          into <span class="m">R = X·H</span> (<b data-v="enc">…</b>). <span class="m">R</span> is public and hosted on
+          GitHub Pages, a <i>retrieval-only</i> server that just serves files and computes nothing.</li>
+        <li><b>To read article <span class="m">i</span></b>, your browser picks <b><span data-v="s">…</span> blocks of
+          <span class="m">R</span> uniformly at random, independently of <span class="m">i</span></b>, and downloads them
+          from GitHub Pages.</li>
+        <li>From the same random choice, it builds the query <span class="m">q = H·e + e<sub>i</sub></span>
+          (<span class="m">e</span> marks the <span data-v="s">…</span> blocks) and sends it to the <b>compute server</b>,
+          which returns <span class="m">X·q</span>.</li>
+        <li>Your browser removes the retrieved blocks: <span class="m">X·q − Σ<sub>j</sub> R<sub>j</sub> = X·e<sub>i</sub></span>,
+          the block holding your article. That's about <b data-v="lookup">…</b> per lookup.</li>
+      </ul>
+
+      <h3>Why neither server learns what you read</h3>
+      <p>GitHub sees <span data-v="s">…</span> uniformly random blocks, the same distribution whatever the article.
+        The compute server sees <span class="m">q</span>, which under the Learning Parity with Noise (LPN) assumption
+        is indistinguishable from random. Privacy could only break if the two views were combined. GitHub Pages
+        provides no access logs to site owners, so as long as GitHub doesn't collaborate with the operator of the
+        compute server (the author of this demo), the compute server learns nothing about your query.</p>
+
+      <p class="note">Search runs in your browser on a title list downloaded once; nothing you type is sent anywhere.</p>
+      <p class="links"><a href="https://eprint.iacr.org/2026/1372" rel="noreferrer">Paper</a> ·
+        <a href="https://github.com/rcpir/rcpir" rel="noreferrer">RC-PIR implementation (rcpir/rcpir)</a></p>
     </div>
 
     <div class="state st-loading loading">

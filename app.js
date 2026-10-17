@@ -37,7 +37,6 @@ let sorted = [];         // [lowercased title, title], sorted, for prefix search
 async function start() {
   client = await RcPirClient.connect({ retrieval: location.origin, compute: COMPUTE, pinSha256: PIN_SHA256 });
   params = client.params;
-  document.querySelectorAll(".s-val").forEach((e) => (e.textContent = params.s));
   $("m-label").textContent = (params.m - 1).toLocaleString();
   $("host-what").textContent = `Random blocks of the ${encSize()} encoded database, chosen independently of the article`;
   $("compute-what").textContent = `One query vector that looks random (LPN-encrypted); the server computes over the whole ${dbSize()} database`;
@@ -46,6 +45,9 @@ async function start() {
   text.split("\n").forEach((line, col) => line.split("\t").forEach((t, slot) => index.set(t, [col, slot])));
   sorted = [...index.keys()].map((t) => [t.toLowerCase(), t]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   $("stats").innerHTML = `${index.size.toLocaleString()} articles · ${dbSize()} database<br>Lead sections · Wikipedia dump 2026-10-01`;
+  const v = { articles: index.size.toLocaleString(), db: dbSize(), enc: encSize(), s: String(params.s),
+              lookup: fmtBytes((params.s + 1) * params.L + Math.ceil(params.t / 8)) };
+  document.querySelectorAll("[data-v]").forEach((e) => (e.textContent = v[e.dataset.v]));
   $("q").disabled = false;
   $("q").placeholder = "Search " + index.size.toLocaleString() + " articles";
   route();
@@ -99,11 +101,13 @@ $("q").addEventListener("keydown", (e) => {
 // ---- navigation (the URL fragment never leaves the browser) --------------------------------------
 const go = (title) => { $("suggest").hidden = true; $("q").blur(); location.hash = encodeURIComponent(title); };
 addEventListener("hashchange", route);
+let queue = Promise.resolve();  // lookups run one at a time (the panel records one lookup's requests)
+const current = () => decodeURIComponent(location.hash.slice(1));
 function route() {
-  const title = decodeURIComponent(location.hash.slice(1));
+  const title = current();
   if (!title) { setState("home"); $("q").value = ""; return; }
   $("q").value = title;
-  open(title);
+  queue = queue.then(() => (current() === title ? open(title) : null)); // skip lookups superseded while waiting
 }
 
 // ---- retrieval + rendering -----------------------------------------------------------------------
@@ -116,11 +120,18 @@ async function open(title) {
   const loc = index.get(title);
   if (!loc) return fail(`"${title}" is not in the private collection.`);
   setState("loading");
-  progress(0);
-  rec = { cols: [], query: null, done: 0 };
   const t0 = performance.now();
   try {
-    const block = await client.retrieve(loc[0]);
+    let block;
+    for (let attempt = 1; ; attempt++) {
+      progress(0);
+      rec = { cols: [], query: null, done: 0 };
+      try { block = await client.retrieve(loc[0]); break; }
+      catch (e) {   // one retry for transient failures (a fresh, independent query)
+        if (attempt > 1 || !["network", "timeout", "http-status"].includes(e.code)) throw e;
+        $("progress-text").textContent = "Network hiccup, retrying…";
+      }
+    }
     const ms = performance.now() - t0;
     const { data, truncated } = entry(block, loc[1]);
     const wikitext = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"))).text();

@@ -55,8 +55,13 @@ aside .ok { color:var(--ok); font-weight:600; }
 .progress div { width:0; height:100%; background:var(--accent); transition:width .1s; }
 .error { padding:40px 0; color:var(--err); }
 .home h2 { font:400 26px Georgia, serif; margin:10px 0 6px; }
-.home p, .home ol { color:var(--muted); max-width:640px; }
-.home ol { padding-left:20px; }
+.home h3 { font-size:16px; margin:22px 0 6px; }
+.home p, .home ul { max-width:680px; }
+.home ul { padding-left:20px; }
+.home li { margin-bottom:6px; }
+.home .m { font-family:Georgia, "Times New Roman", serif; font-style:italic; white-space:nowrap; }
+.home .note { color:var(--muted); font-size:13.5px; margin-top:18px; }
+.home .links { font-size:13.5px; }
 .state { display:none; }
 body.s-home .st-home, body.s-loading .st-loading, body.s-article .st-article, body.s-error .st-error { display:block; }
 footer { max-width:1180px; margin:0 auto; padding:10px 24px 30px; font-size:12px; color:var(--muted); }
