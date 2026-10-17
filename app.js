@@ -37,6 +37,7 @@ let sorted = [];         // [lowercased title, title], sorted, for prefix search
 async function start() {
   client = await RcPirClient.connect({ retrieval: location.origin, compute: COMPUTE, pinSha256: PIN_SHA256 });
   params = client.params;
+  warmShards();
   $("m-label").textContent = (params.m - 1).toLocaleString();
   $("host-what").textContent = `Random blocks of the ${encSize()} encoded database, chosen independently of the article`;
   $("compute-what").textContent = `One query vector that looks random (LPN-encrypted); the server computes over the whole ${dbSize()} database`;
@@ -51,6 +52,17 @@ async function start() {
   $("q").disabled = false;
   $("q").placeholder = "Search " + index.size.toLocaleString() + " articles";
   route();
+}
+
+// Warm the CDN: one 1-byte request per shard of R at startup, so the nearest edge has the shards cached before
+// the first lookup. Identical for every visitor, so it reveals nothing. (A range covers >= 1 byte; 0 is not valid.)
+// Uses realFetch so these requests are not shown in the panel.
+function warmShards() {
+  const shards = Math.ceil(params.m / params.columns_per_shard);
+  for (let k = 0; k < shards; k++) {
+    realFetch(`/rc-pir/r/${k.toString(16).padStart(8, "0")}`, { headers: { Range: "bytes=0-0" } })
+      .then((r) => r.arrayBuffer()).catch(() => {});
+  }
 }
 
 // ---- search box ----------------------------------------------------------------------------------
