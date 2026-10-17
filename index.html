@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Only our own origin and the compute server may be contacted (no images or scripts from Wikipedia etc.). -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://compute.invalid; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Private Wikipedia</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body class="s-home">
+<header>
+  <div class="bar">
+    <a class="logo" href="#"><span class="lock">🔒</span> Private Wikipedia<small>Nobody learns which article you read</small></a>
+    <div class="search">
+      <span class="icon">⌕</span>
+      <input id="q" placeholder="Loading titles…" autocomplete="off" spellcheck="false" aria-label="Search articles" disabled>
+      <ul id="suggest" class="suggest" hidden></ul>
+    </div>
+    <div class="stats" id="stats">&nbsp;</div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="state st-home home">
+      <h2>Read Wikipedia privately</h2>
+      <p>Lead sections of the most-read English Wikipedia articles. Each lookup is answered by two
+         servers using RC-PIR, so neither the website host nor the compute server learns which article you opened.</p>
+      <ol>
+        <li>The title list is downloaded once; search runs in your browser.</li>
+        <li>Opening an article fetches <span class="s-val">s</span> random-looking blocks from the website host and sends one
+            scrambled query to the compute server.</li>
+        <li>Your browser combines the answers into the article. Every lookup looks the same on the network.</li>
+      </ol>
+    </div>
+
+    <div class="state st-loading loading">
+      <div class="big">Retrieving privately…</div>
+      <div class="progress"><div id="bar"></div></div>
+      <div id="progress-text"></div>
+    </div>
+
+    <div class="state st-error error" id="error"></div>
+
+    <article class="state st-article">
+      <h1 id="title"></h1>
+      <div class="short" id="short"></div>
+      <div id="body"></div>
+      <div class="notice" id="notice"></div>
+    </article>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h3>🛡️ What the servers saw</h3>
+      <div class="ok" id="last" hidden>Last lookup: nothing about the article</div>
+      <div class="srv">
+        <div class="name">Website host</div>
+        <div class="what" id="host-what">Random blocks of the encoded database, chosen independently of the article</div>
+        <div class="strip" id="strip"></div>
+        <div class="strip-l"><span>block 0</span><span id="m-label"></span></div>
+      </div>
+      <div class="srv">
+        <div class="name">Compute server</div>
+        <div class="what" id="compute-what">One query vector that looks random (LPN-encrypted)</div>
+        <div class="bits" id="bits"></div>
+      </div>
+      <div class="totals">
+        <span>Downloaded</span><span id="t-bytes">–</span>
+        <span>Requests</span><span id="t-req">–</span>
+        <span>Time</span><span id="t-time">–</span>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer>Demo · RC-PIR (<a href="https://github.com/rcpir/rcpir" rel="noreferrer">rcpir/rcpir</a>) ·
+  Text from Wikipedia (dump 2026-10-01), <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noreferrer">CC BY-SA 4.0</a></footer>
+</body>
+</html>

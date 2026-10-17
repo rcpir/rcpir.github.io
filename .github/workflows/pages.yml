@@ -1,0 +1,50 @@
+# GitHub Pages deployment for rcpir.github.io (copy to .github/workflows/pages.yml in that repo).
+# The repo holds only the web app (scripts/make_site.sh --web-only); the shards of R and
+# .well-known/rc-pir.json come from the GitHub release DATA_TAG of the same repo.
+# Repo settings: Pages -> Build and deployment -> Source: GitHub Actions.
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+env:
+  DATA_TAG: data-2026-10-01-c4          # release with the encoder output (shards 0000000x, rc-pir.json)
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Assemble site (web app + shards of R from the release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site/rc-pir/r _site/.well-known
+          rsync -a --exclude .git --exclude .github --exclude _site ./ _site/
+          gh release download "$DATA_TAG" --pattern '0*' --dir _site/rc-pir/r
+          gh release download "$DATA_TAG" --pattern 'rc-pir.json' --dir _site/.well-known
+          # the web app must be built for this exact params.json (pin in config.js)
+          pin=$(sed -n 's/.*PIN_SHA256 = "\([0-9a-f]*\)".*/\1/p' _site/config.js)
+          echo "$pin  _site/.well-known/rc-pir.json" | sha256sum -c -
+          ls _site/rc-pir/r | wc -l
+          size=$(du -sb _site | cut -f1); echo "site size: $size bytes"
+          test "$size" -lt 1000000000      # GitHub Pages: published site <= 1 GB
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+          include-hidden-files: true       # .well-known/rc-pir.json
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
