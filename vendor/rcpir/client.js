@@ -129,7 +129,7 @@ export class RcPirClient {
             // One single-range GET per column (CORS-safelisted: no preflight); the host must answer 206.
             const columnRequests = S.map((j) => {
                 const { path, offset } = columnLocation(j, columns_per_shard, L);
-                const range = { headers: { Range: `bytes=${offset}-${offset + L - 1}` } };
+		const range = { headers: { Range: `bytes=${offset}-${offset + L - 1}` }, cache: "no-store" as RequestCache };
                 return fetchBytes(new URL(path, this.retrieval), signal, range, L, 206);
             });
             return Promise.all([computeRequest, ...columnRequests]);
