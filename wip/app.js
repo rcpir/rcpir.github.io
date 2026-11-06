@@ -1,8 +1,8 @@
 // Private Wikipedia demo: title search (local) + RC-PIR retrieval of the article's column + wikitext rendering.
-import { GitHubPages, GoogleDrive, OneDrive, RcPirClient } from "./vendor/rcpir/index.js";
+import { Dropbox, GitHubPages, GoogleDrive, OneDrive, RcPirClient } from "./vendor/rcpir/index.js";
 import wtf from "../vendor/wtf/wtf_wikipedia-client.mjs";   // shared with the main site
 import wtfHtml from "../vendor/wtf/wtf-plugin-html.mjs";
-import { COMPUTE, GDRIVE_FILE_ID, GITHUB_SITE, ONEDRIVE_LINK, PIN_SHA256 } from "./config.js";
+import { COMPUTE, DROPBOX_LINKS, GDRIVE_FILE_ID, GITHUB_SITE, ONEDRIVE_LINK, PIN_SHA256 } from "./config.js";
 import { GDRIVE_API_KEY } from "./gdrive-key.js";
 
 wtf.extend(wtfHtml);
@@ -13,12 +13,13 @@ const fmtMB = (b) => (b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : (b / 1e6).toFixe
 const dbSize = () => fmtMB(params.t * params.L);      // X: the database the compute server scans
 const encSize = () => fmtMB(params.m * params.L);     // R: the encoded copy on the retrieval host
 
-// ---- retrieval hosts: the same R on GitHub Pages, Google Drive and OneDrive -----------------------
+// ---- retrieval hosts: the same R on GitHub Pages, Google Drive, OneDrive and Dropbox --------------
 const HOSTS = {
   github: { name: "GitHub Pages", org: "GitHub", make: () => new GitHubPages(GITHUB_SITE) },
   gdrive: { name: "Google Drive", org: "Google", make: () => new GoogleDrive(GDRIVE_FILE_ID, GDRIVE_API_KEY),
             off: !GDRIVE_API_KEY && "not configured" },
   onedrive: { name: "OneDrive", org: "Microsoft", make: () => new OneDrive(ONEDRIVE_LINK) },
+  dropbox: { name: "Dropbox", org: "Dropbox", make: () => new Dropbox(DROPBOX_LINKS) },
 };
 const wanted = new URLSearchParams(location.search).get("provider") ?? localStorage.getItem("rcpir-host") ?? "github";
 let hostId = HOSTS[wanted] && !HOSTS[wanted].off ? wanted : "github";
@@ -136,6 +137,11 @@ async function explain(e) {
     return "OneDrive is throttling this file's anonymous link: Microsoft allows about 3,000 requests per 5 minutes " +
            "per OneDrive (~34 lookups). Try again in a few minutes, or switch to GitHub Pages.";
   }
+  // Dropbox answers 429 without CORS headers when requests come too fast, so the browser only sees a network error.
+  if (hostId === "dropbox" && ["http-status", "network"].includes(e.code)) {
+    return "Dropbox is throttling the requests (it allows roughly 40 per second per file; a lookup needs " +
+           `${params.s}). Try again in a moment, or switch to GitHub Pages.`;
+  }
   if (hostId !== "gdrive" || !["http-status", "network", "timeout"].includes(e.code)) return `${e.code ?? ""} ${e.message}`;
   let status = 0, body = "";
   const seen = driveRefusal && (await driveRefusal);   // the reason Google gave for a refused request, if readable
@@ -247,7 +253,7 @@ async function open(title) {
       progress(job.done);
       try { block = await c.retrieve(loc[0], job.p); break; }
       catch (e) {   // one retry for transient failures (a fresh, independent query)
-        if (attempt > 1 || hostId !== "github" || !["network", "timeout", "http-status"].includes(e.code)) throw e;   // Drive, OneDrive: save quota
+        if (attempt > 1 || hostId !== "github" || !["network", "timeout", "http-status"].includes(e.code)) throw e;   // Drive, OneDrive, Dropbox: save quota
         $("progress-text").textContent = "Network hiccup, retrying…";
       } finally { waiting = null; }
     }

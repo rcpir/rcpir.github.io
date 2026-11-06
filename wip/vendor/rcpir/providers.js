@@ -71,4 +71,50 @@ export class OneDrive {
         return { url: this.url, offset: j * p.L };
     }
 }
+/**
+ * All of R in one Dropbox file (column j at offset j * L), from its shared link
+ * https://www.dropbox.com/scl/fi/<id>/<name>?rlkey=<key>, or in several copies of that file (one link each). Read from
+ * the same path on dl.dropboxusercontent.com: no redirect and Access-Control-Allow-Origin: * (the www.dropbox.com link
+ * redirects, without CORS on the first hop, to temporary URLs). Dropbox answers 429 (without CORS headers) above
+ * roughly 40 requests per second per file, with bursts of ~50; 24 in flight per copy keeps each file at ~30 per
+ * second. Column j is read from copy j mod n: independent of the block read, like S (providers/DROPBOX.md).
+ */
+export class Dropbox {
+    name = "Dropbox";
+    maxParallel;
+    urls;
+    /** `sharedLinks`: one link, or links to identical copies of the file (all of them must hold the same R). */
+    constructor(sharedLinks) {
+        const links = typeof sharedLinks === "string" ? [sharedLinks] : [...sharedLinks];
+        if (!links.length)
+            throw new RcPirError("bad-argument", "Dropbox needs at least one shared link");
+        this.urls = links.map((l) => Dropbox.directUrl(l));
+        this.maxParallel = 24 * this.urls.length;
+    }
+    locate(j, p) {
+        return { url: this.urls[j % this.urls.length], offset: j * p.L };
+    }
+    static directUrl(sharedLink) {
+        const bad = (why) => new RcPirError("bad-argument", `not a Dropbox shared file link (${why}): ${sharedLink}`);
+        let link;
+        try {
+            link = new URL(sharedLink);
+        }
+        catch {
+            throw bad("invalid URL");
+        }
+        if (link.protocol !== "https:" || link.port || !["www.dropbox.com", "dropbox.com", "dl.dropboxusercontent.com"].includes(link.hostname)) {
+            throw bad("expected https://www.dropbox.com");
+        }
+        const m = /^\/scl\/fi\/([a-z0-9]+)\/([A-Za-z0-9._~%-]+)$/i.exec(link.pathname);
+        if (!m)
+            throw bad("expected /scl/fi/<id>/<name>");
+        const rlkey = link.searchParams.get("rlkey");
+        if (!rlkey || !/^[a-z0-9]+$/i.test(rlkey))
+            throw bad("missing rlkey");
+        const url = new URL(`https://dl.dropboxusercontent.com/scl/fi/${m[1]}/${m[2]}`);
+        url.searchParams.set("rlkey", rlkey);
+        return url;
+    }
+}
 //# sourceMappingURL=providers.js.map
