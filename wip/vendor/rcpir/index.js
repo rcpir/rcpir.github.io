@@ -1,7 +1,7 @@
 // @rcpir/client: client for the sqrt(n) RC-PIR over F_2 (docs/protocol.md).
 // No runtime dependencies: only WebCrypto and fetch (browsers in a secure context, Node >= 19).
 export { RcPirClient, Prepared, DEFAULT_TIMEOUT_MS } from "./client.js";
-export { GitHubPages, GoogleDrive } from "./providers.js";
+export { GitHubPages, GoogleDrive, OneDrive } from "./providers.js";
 export { RcPirError } from "./errors.js";
 export { parseParams, isInsecure, sha256Hex } from "./params.js";
 // Low-level steps, for deterministic conformance tests.
