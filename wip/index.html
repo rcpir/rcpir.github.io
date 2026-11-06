@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Only our own origin, the retrieval hosts and the compute server may be contacted (no images or scripts from Wikipedia etc.). -->
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://rcpir.github.io https://www.googleapis.com https://mailtauacil-my.sharepoint.com https://rcpir.austriaeast.cloudapp.azure.com; base-uri 'none'; form-action 'none'">
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://rcpir.github.io https://www.googleapis.com https://mailtauacil-my.sharepoint.com https://dl.dropboxusercontent.com https://rcpir.austriaeast.cloudapp.azure.com; base-uri 'none'; form-action 'none'">
 <!-- Requests carry only "https://rcpir.github.io/" as Referer (never the article: the #fragment is never sent);
      the Google Drive API key only accepts requests from this site. -->
 <meta name="referrer" content="strict-origin">
@@ -58,7 +58,7 @@
       <p><span data-v="org">…</span> sees <span data-v="s">…</span> uniformly random blocks, the same distribution whatever the article.
         The compute server sees <span class="m">q</span>, which under the Learning Parity with Noise (LPN) assumption
         is indistinguishable from random. Privacy could only break if the two views were combined. None of the hosts
-        (GitHub Pages, Google Drive, OneDrive) gives the site owner logs of which blocks were read, so as long as
+        (GitHub Pages, Google Drive, OneDrive, Dropbox) gives the site owner logs of which blocks were read, so as long as
         <span data-v="org">…</span> doesn't collaborate with the operator of the compute server (the author of this
         demo), the compute server learns nothing about your query.</p>
 
