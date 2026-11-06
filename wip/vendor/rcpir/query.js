@@ -1,0 +1,53 @@
+// The deterministic protocol steps (docs/protocol.md §2, §4; docs/db_format.md §3).
+// No I/O and no randomness: the caller supplies S, so conformance tests can drive them directly.
+import { flipBit, xorManyInto } from "./bits.js";
+import { RcPirError } from "./errors.js";
+import { hColumn } from "./h_prg.js";
+/**
+ * Location of column j of R on the retrieval server: the L bytes at `offset` in the shard at `path`,
+ * /rc-pir/r/<shard as 8 hex digits>, shard = floor(j / columns_per_shard).
+ */
+export function columnLocation(j, columnsPerShard, L) {
+    const shard = Math.floor(j / columnsPerShard);
+    return { path: `/rc-pir/r/${shard.toString(16).padStart(8, "0")}`, offset: (j % columnsPerShard) * L };
+}
+/** H e = XOR of the columns H_{*,j} for j in S: the part of q_c that does not depend on the index. */
+export async function buildHe(p, hKey, S) {
+    if (S.some((j) => !Number.isInteger(j) || j < 0 || j >= p.m) || new Set(S).size !== S.length) {
+        throw new RcPirError("bad-argument", "S must contain distinct indices in [0, m)");
+    }
+    const he = new Uint8Array(Math.ceil(p.t / 8));
+    xorManyInto(he, await Promise.all(S.map((j) => hColumn(hKey, p.t, j))));
+    return he;
+}
+export function checkIndex(p, i) {
+    if (!Number.isInteger(i) || i < 0 || i >= p.t)
+        throw new RcPirError("bad-argument", `index ${i} not in [0, ${p.t})`);
+}
+/** q_c = H e + e_i: a copy of H e with bit i flipped. */
+export function addIndex(p, he, i) {
+    checkIndex(p, i);
+    const qc = he.slice();
+    flipBit(qc, i);
+    return qc;
+}
+/** q_c = XOR of the columns H_{*,j} for j in S, with bit i flipped. */
+export async function buildComputeQuery(p, hKey, S, i) {
+    checkIndex(p, i); // before the work, as before
+    return addIndex(p, await buildHe(p, hKey, S), i);
+}
+/** Column i of X = X q_c XOR (XOR of the retrieved columns R_{*,j}, j in S). */
+export function combineAnswers(computeAnswer, retrieved) {
+    const col = computeAnswer.slice(); // a copy: the caller's buffer is left unchanged
+    xorManyInto(col, retrieved);
+    return col;
+}
+/** Block payload: u32 big-endian length header, then the payload. Rejects len > L-4. */
+export function decodeBlock(column) {
+    const len = new DataView(column.buffer, column.byteOffset, column.byteLength).getUint32(0);
+    if (len > column.length - 4) {
+        throw new RcPirError("decode-invalid", `block header says ${len} bytes, at most ${column.length - 4} fit`);
+    }
+    return column.slice(4, 4 + len);
+}
+//# sourceMappingURL=query.js.map
